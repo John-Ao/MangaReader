@@ -165,17 +165,14 @@ void MainWindow::mousePressEvent(QMouseEvent *event) {
 void MainWindow::mouseReleaseEvent(QMouseEvent *event) {
     mousePressed = false;
     bool left;
-    bool isClick = false;
     if (abs(offset) > 30) {
         left = offset > 0;
     } else {
         auto w = this->width(), x = event->x();
         if (x < w / 3) {
             left = false;
-            isClick = true;
         } else if (x > 2 * w / 3) {
             left = true;
-            isClick = true;
         } else {
             return;
         }
@@ -192,14 +189,26 @@ void MainWindow::mouseReleaseEvent(QMouseEvent *event) {
         legal = focusId < files.size() - 1;
     }
     arangeImage();
-    processKey(key);
     if (legal) {
         if (left) {
             offset -= (imgs[1]->width() + imgs[0]->width()) / 2 + gap;
+            auto p = imgs[2]->pixmap();
+            if (p != nullptr) {
+                imgs[3]->setPixmap(*p);
+                adjustImage(imgs[3]);
+                pos = Position::right;
+            }
         } else {
             offset += (imgs[1]->width() + imgs[2]->width()) / 2 + gap;
+            auto p = imgs[0]->pixmap();
+            if (p != nullptr) {
+                imgs[3]->setPixmap(*p);
+                adjustImage(imgs[3]);
+                pos = Position::left;
+            }
         }
     }
+    processKey(key);
     arangeImage();
     if (offset != 0) {
         if (ani != nullptr) {
@@ -214,6 +223,10 @@ void MainWindow::mouseReleaseEvent(QMouseEvent *event) {
             offset = value.toInt();
             arangeImage();
             QApplication::processEvents();
+        });
+        connect(ani, &QVariantAnimation::finished, [this]() {
+            this->pos = none;
+            arangeImage();
         });
         ani->start();
     }
@@ -240,19 +253,24 @@ void MainWindow::loadImage() {
 void MainWindow::setOneImage(QLabel* label, const int& id) {
     auto path = filePath + files[id];
     auto img = QPixmap::fromImage(QImageReader(path).read());
-    auto h = this->height() - ui->statusbar->height(), w = this->width();
     if (img.isNull()) {
         label->setText(tr("Cannot open this file\n") + path);
         label->setStyleSheet("background-color:white; font-size:20px; color:red;");
     } else {
         label->setPixmap(img);
-        auto ih = img.height(), iw = img.width();
-        auto ww = iw * h / ih;
-        if (ww > w) {
-            label->resize(w, ih * w / iw);
-        } else {
-            label->resize(ww, h);
-        }
+        adjustImage(label);
+    }
+}
+
+void MainWindow::adjustImage(QLabel *label) {
+    auto h = this->height() - ui->statusbar->height(), w = this->width();
+    auto img = label->pixmap();
+    auto ih = img->height(), iw = img->width();
+    auto ww = iw * h / ih;
+    if (ww > w) {
+        label->resize(w, ih * w / iw);
+    } else {
+        label->resize(ww, h);
     }
 }
 
@@ -262,4 +280,13 @@ void MainWindow::arangeImage() {
     imgs[1]->move(left, (h - imgs[1]->height()) / 2);
     imgs[0]->move(left - imgs[0]->width() - gap, (h - imgs[0]->height()) / 2);
     imgs[2]->move(left + imgs[1]->width() + gap, (h - imgs[2]->height()) / 2);
+    if (pos == Position::left) {
+        imgs[3]->move(left - imgs[0]->width() - gap * 2 - imgs[3]->width(), (h - imgs[3]->height()) / 2);
+        imgs[3]->setVisible(true);
+    } else if (pos == Position::right) {
+        imgs[3]->move(left + imgs[1]->width() + gap * 2 + imgs[2]->width(), (h - imgs[3]->height()) / 2);
+        imgs[3]->setVisible(true);
+    } else {
+        imgs[3]->setVisible(false);
+    }
 }

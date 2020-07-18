@@ -37,7 +37,8 @@ private:
     Ui::MainWindow *ui;
     QString filePath;
     QList<QString> files;
-    QLabel* imgs[3];
+    QLabel* imgs[4]; // imgs[3]用于填补在左边或者右边
+    enum Position {none, left, right} pos = none; // 填补位置
     int focusId = 0; // 当前阅读页
     int offset = 0; // 滑动位移
     int lastMouseX = 0;
@@ -52,6 +53,7 @@ private:
     void resizeEvent(QResizeEvent*);
     void loadImage(); // 从文件夹加载图片
     void setOneImage(QLabel*, const int&); // 按id加载图片到指定QLabel
+    void adjustImage(QLabel*); // 调整QLabel尺寸
     void arangeImage(); // 排列3个图像
     void processKey(int); // 处理按键，单独放出来是为了给鼠标滑动提供接口
 };
