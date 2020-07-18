@@ -22,7 +22,7 @@ class MainWindow;
 QT_END_NAMESPACE
 
 const QList<const char*> supportedTypes = {"jpg", "jpeg", "png", "bmp", "gif", "pbm", "pgm", "ppm", "xbm", "xpm", "svg"};
-const bool reversed = false; // true-向右滑动翻页；false-向左滑动翻页
+const bool reversed = true; // true-向右滑动翻页；false-向左滑动翻页
 const int gap = 5; // 图像间间距
 const int prefetchNumber = 5; // 预取数量（双向）
 

@@ -88,7 +88,7 @@ void MainWindow::dropEvent(QDropEvent* event) {
 }
 
 void MainWindow::resizeEvent(QResizeEvent* event) {
-    auto h = this->height(), w = this->width();
+    auto h = this->height() - ui->statusbar->height(), w = this->width();
     for (auto& img : imgs) {
         auto pixmap = img->pixmap();
         if (pixmap != nullptr) {
@@ -147,7 +147,7 @@ void MainWindow::processKey(int key) {
             tmp->setVisible(false);
         }
     }
-//    arangeImage();
+    ui->statusbar->showMessage(QString("%1    %2/%3").arg(files[focusId]).arg(focusId + 1).arg(files.size()));
 }
 
 void MainWindow::mouseMoveEvent(QMouseEvent *event) {
@@ -231,12 +231,13 @@ void MainWindow::loadImage() {
         }
     }
     arangeImage();
+    ui->statusbar->showMessage(QString("%1    %2/%3").arg(files[focusId]).arg(focusId + 1).arg(files.size()));
 }
 
 void MainWindow::setOneImage(QLabel* label, const int& id) {
     auto path = filePath + files[id];
     auto img = QPixmap::fromImage(QImageReader(path).read());
-    auto h = this->height(), w = this->width();
+    auto h = this->height() - ui->statusbar->height(), w = this->width();
     if (img.isNull()) {
         label->setText(tr("Cannot open this file\n") + path);
         label->setStyleSheet("background-color:white; font-size:20px; color:red;");
@@ -253,7 +254,7 @@ void MainWindow::setOneImage(QLabel* label, const int& id) {
 }
 
 void MainWindow::arangeImage() {
-    auto h = this->height(), w = this->width();
+    auto h = this->height() - ui->statusbar->height(), w = this->width();
     auto left = (w - imgs[1]->width()) / 2 + offset;
     imgs[1]->move(left, (h - imgs[1]->height()) / 2);
     imgs[0]->move(left - imgs[0]->width() - gap, (h - imgs[0]->height()) / 2);
