@@ -165,18 +165,21 @@ void MainWindow::mousePressEvent(QMouseEvent *event) {
 void MainWindow::mouseReleaseEvent(QMouseEvent *event) {
     mousePressed = false;
     bool left;
-    if (abs(offset) > 5) {
+    bool isClick = false;
+    if (abs(offset) > 30) {
         left = offset > 0;
     } else {
-        offset = 0;
         auto w = this->width(), x = event->x();
         if (x < w / 3) {
             left = false;
+            isClick = true;
         } else if (x > 2 * w / 3) {
             left = true;
+            isClick = true;
         } else {
             return;
         }
+        offset = 0;
     }
 
     int key;
@@ -191,9 +194,9 @@ void MainWindow::mouseReleaseEvent(QMouseEvent *event) {
     arangeImage();
     processKey(key);
     if (legal) {
-        if (offset > 0) {
+        if (left) {
             offset -= (imgs[1]->width() + imgs[0]->width()) / 2 + gap;
-        } else if (offset < 0) {
+        } else {
             offset += (imgs[1]->width() + imgs[2]->width()) / 2 + gap;
         }
     }
