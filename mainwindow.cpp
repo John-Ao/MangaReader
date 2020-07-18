@@ -58,7 +58,6 @@ void MainWindow::dragEnterEvent(QDragEnterEvent *event) {
 
 void MainWindow::dropEvent(QDropEvent* event) {
     // this is not triggered if not accepted in dropEnterEvent()
-    cache.clear();
     QApplication::setOverrideCursor(Qt::WaitCursor);
     QApplication::processEvents();
     auto path = QDir::cleanPath(event->mimeData()->urls().at(0).toLocalFile());
@@ -85,14 +84,6 @@ void MainWindow::dropEvent(QDropEvent* event) {
         }
     }
     loadImage();
-    if (prefetchTask != nullptr) {
-        delete prefetchTask;
-    }
-    prefetchTask = new QTimer(this);
-    connect(prefetchTask, &QTimer::timeout, [this]() {
-        this->prefetch();
-    });
-    prefetchTask->start(1000);
     QApplication::restoreOverrideCursor();
 }
 
@@ -197,10 +188,8 @@ void MainWindow::mouseReleaseEvent(QMouseEvent *event) {
         key = Qt::Key_Right;
         legal = focusId < files.size() - 1;
     }
-    qDebug() << "k1";
     arangeImage();
     processKey(key);
-    qDebug() << "k2";
     if (legal) {
         if (offset > 0) {
             offset -= (imgs[1]->width() + imgs[0]->width()) / 2 + gap;
@@ -209,7 +198,6 @@ void MainWindow::mouseReleaseEvent(QMouseEvent *event) {
         }
     }
     arangeImage();
-    qDebug() << "k3";
     if (offset != 0) {
         if (ani != nullptr) {
             delete ani;
@@ -222,6 +210,7 @@ void MainWindow::mouseReleaseEvent(QMouseEvent *event) {
         connect(ani, &QVariantAnimation::valueChanged, [this](const QVariant & value) {
             offset = value.toInt();
             arangeImage();
+            QApplication::processEvents();
         });
         ani->start();
     }
@@ -245,24 +234,15 @@ void MainWindow::loadImage() {
 }
 
 void MainWindow::setOneImage(QLabel* label, const int& id) {
-    QPixmap *img, _img;
     auto path = filePath + files[id];
-    if (cache.contains(id)) {
-        img = &cache[id];
-        qDebug() << "use prefetched " << id;
-    } else {
-        qDebug() << "not prefetched " << id;
-        _img = QPixmap::fromImage(QImageReader(path).read());
-        cache.insert(id, _img);
-        img = &_img;
-    }
+    auto img = QPixmap::fromImage(QImageReader(path).read());
     auto h = this->height(), w = this->width();
-    if (img->isNull()) {
+    if (img.isNull()) {
         label->setText(tr("Cannot open this file\n") + path);
         label->setStyleSheet("background-color:white; font-size:20px; color:red;");
     } else {
-        label->setPixmap(*img);
-        auto ih = img->height(), iw = img->width();
+        label->setPixmap(img);
+        auto ih = img.height(), iw = img.width();
         auto ww = iw * h / ih;
         if (ww > w) {
             label->resize(w, ih * w / iw);
@@ -278,13 +258,4 @@ void MainWindow::arangeImage() {
     imgs[1]->move(left, (h - imgs[1]->height()) / 2);
     imgs[0]->move(left - imgs[0]->width() - gap, (h - imgs[0]->height()) / 2);
     imgs[2]->move(left + imgs[1]->width() + gap, (h - imgs[2]->height()) / 2);
-}
-
-void MainWindow::prefetch() {
-    for (int i = 2, j, m = files.size() - 1; i < prefetchNumber; ++i) {
-        j = focusId + i;
-        if (j < m && !cache.contains(j)) {
-            cache.insert(j, QPixmap::fromImage(QImageReader(filePath + files[j]).read()));
-        }
-    }
 }

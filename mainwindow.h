@@ -14,8 +14,6 @@
 #include <QLayout>
 #include <QStyle>
 #include <QVariantAnimation>
-#include <QMap>
-#include <QTimer>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -44,8 +42,6 @@ private:
     int offset = 0; // 滑动位移
     int lastMouseX = 0;
     bool mousePressed = false;
-    QMap<int, QPixmap> cache; // 图像缓存
-    QTimer *prefetchTask = nullptr;
     QVariantAnimation *ani = nullptr;
     void dragEnterEvent(QDragEnterEvent*);
     void dropEvent(QDropEvent*);
@@ -58,6 +54,5 @@ private:
     void setOneImage(QLabel*, const int&); // 按id加载图片到指定QLabel
     void arangeImage(); // 排列3个图像
     void processKey(int); // 处理按键，单独放出来是为了给鼠标滑动提供接口
-    void prefetch(); // 定时任务，图像预取
 };
 #endif // MAINWINDOW_H
