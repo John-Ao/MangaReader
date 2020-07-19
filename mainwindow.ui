@@ -18,6 +18,43 @@
   </property>
   <widget class="QWidget" name="centralwidget"/>
   <widget class="QStatusBar" name="statusbar"/>
+  <widget class="QMenuBar" name="menuBar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>800</width>
+     <height>21</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menuOptions">
+    <property name="title">
+     <string>选项</string>
+    </property>
+    <addaction name="read_r2l"/>
+    <addaction name="read_l2r"/>
+   </widget>
+   <addaction name="menuOptions"/>
+  </widget>
+  <action name="read_r2l">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>从右向左</string>
+   </property>
+  </action>
+  <action name="read_l2r">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>从左向右</string>
+   </property>
+  </action>
  </widget>
  <resources/>
  <connections/>

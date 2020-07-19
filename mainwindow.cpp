@@ -1,4 +1,4 @@
-#include "mainwindow.h"
+﻿#include "mainwindow.h"
 #include "ui_mainwindow.h"
 
 MainWindow::MainWindow(QWidget *parent): QMainWindow(parent), ui(new Ui::MainWindow) {
@@ -13,6 +13,10 @@ MainWindow::MainWindow(QWidget *parent): QMainWindow(parent), ui(new Ui::MainWin
         img->setFrameShape(QFrame::Shape::Box);
         layout->addWidget(img);
     }
+    imgs[1]->setText("将图片或者文件夹拖入窗口以开始\n\n"
+                     "滑动、左右方向键、点击页面的左右侧均可翻页\n\n"
+                     "在[选项]中可以更改阅读方向");
+    imgs[1]->setStyleSheet("font-size:20px;");
 }
 
 MainWindow::~MainWindow() {
@@ -62,10 +66,10 @@ void MainWindow::dropEvent(QDropEvent* event) {
     QApplication::processEvents();
     auto path = QDir::cleanPath(event->mimeData()->urls().at(0).toLocalFile());
     QFileInfo file(path);
-    filePath = file.path() + "/";
     files.clear();
     focusId = 0;
     if (file.isFile()) {
+        filePath = file.path() + "/";
         auto fn = file.fileName();
         for (auto i : file.dir().entryInfoList()) {
             if (checkFile(i.suffix())) {
@@ -77,7 +81,8 @@ void MainWindow::dropEvent(QDropEvent* event) {
             }
         }
     } else if (file.isDir()) {
-        for (auto i : file.dir().entryInfoList()) {
+        filePath = path + "/";
+        for (auto i : QDir(path).entryInfoList()) {
             if (checkFile(i.suffix())) {
                 files.append(i.fileName());
             }
@@ -88,17 +93,14 @@ void MainWindow::dropEvent(QDropEvent* event) {
 }
 
 void MainWindow::resizeEvent(QResizeEvent* event) {
-    auto h = this->height() - ui->statusbar->height(), w = this->width();
+    auto &h = imageHeight = this->height() - ui->statusbar->height() - (imageTop = ui->menuBar->height()), w = this->width();
     for (auto& img : imgs) {
-        auto pixmap = img->pixmap();
-        if (pixmap != nullptr) {
-            auto ih = pixmap->height(), iw = pixmap->width();
-            auto ww = iw * h / ih;
-            if (ww > w) {
-                img->resize(w, ih * w / iw);
-            } else {
-                img->resize(ww, h);
-            }
+        auto ih = img->height(), iw = img->width();
+        auto ww = iw * h / ih;
+        if (ww > w) {
+            img->resize(w, ih * w / iw);
+        } else {
+            img->resize(ww, h);
         }
     }
     arangeImage();
@@ -233,6 +235,9 @@ void MainWindow::mouseReleaseEvent(QMouseEvent *event) {
 }
 
 void MainWindow::loadImage() {
+    if (focusId < 0) {
+        return;
+    }
     for (int i = 0, t; i < 3; ++i) {
         if (reversed) {
             t = focusId + 1 - i;
@@ -263,7 +268,7 @@ void MainWindow::setOneImage(QLabel* label, const int& id) {
 }
 
 void MainWindow::adjustImage(QLabel *label) {
-    auto h = this->height() - ui->statusbar->height(), w = this->width();
+    auto &h = imageHeight, w = this->width();
     auto img = label->pixmap();
     auto ih = img->height(), iw = img->width();
     auto ww = iw * h / ih;
@@ -275,18 +280,28 @@ void MainWindow::adjustImage(QLabel *label) {
 }
 
 void MainWindow::arangeImage() {
-    auto h = this->height() - ui->statusbar->height(), w = this->width();
+    auto &h = imageHeight, w = this->width();
     auto left = (w - imgs[1]->width()) / 2 + offset;
-    imgs[1]->move(left, (h - imgs[1]->height()) / 2);
-    imgs[0]->move(left - imgs[0]->width() - gap, (h - imgs[0]->height()) / 2);
-    imgs[2]->move(left + imgs[1]->width() + gap, (h - imgs[2]->height()) / 2);
+    imgs[1]->move(left, imageTop + (h - imgs[1]->height()) / 2);
+    imgs[0]->move(left - imgs[0]->width() - gap, imageTop + (h - imgs[0]->height()) / 2);
+    imgs[2]->move(left + imgs[1]->width() + gap, imageTop + (h - imgs[2]->height()) / 2);
     if (pos == Position::left) {
-        imgs[3]->move(left - imgs[0]->width() - gap * 2 - imgs[3]->width(), (h - imgs[3]->height()) / 2);
+        imgs[3]->move(left - imgs[0]->width() - gap * 2 - imgs[3]->width(), imageTop + (h - imgs[3]->height()) / 2);
         imgs[3]->setVisible(true);
     } else if (pos == Position::right) {
-        imgs[3]->move(left + imgs[1]->width() + gap * 2 + imgs[2]->width(), (h - imgs[3]->height()) / 2);
+        imgs[3]->move(left + imgs[1]->width() + gap * 2 + imgs[2]->width(), imageTop + (h - imgs[3]->height()) / 2);
         imgs[3]->setVisible(true);
     } else {
         imgs[3]->setVisible(false);
     }
+}
+
+void MainWindow::on_read_r2l_triggered(bool checked) {
+    ui->read_l2r->setChecked(!(reversed = checked));
+    loadImage();
+}
+
+void MainWindow::on_read_l2r_triggered(bool checked) {
+    ui->read_r2l->setChecked((reversed = !checked));
+    loadImage();
 }
