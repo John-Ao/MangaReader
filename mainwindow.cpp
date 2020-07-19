@@ -120,7 +120,7 @@ void MainWindow::keyPressEvent(QKeyEvent *event) {
         offset = 0;
         if (ani != nullptr) {
             ani->stop();
-            delete ani;
+            ani->deleteLater();
             ani = nullptr;
         }
         if (animationKey) {
@@ -237,7 +237,7 @@ void MainWindow::slideAnimation(bool left) {
     if (offset != 0) {
         if (ani != nullptr) {
             ani->stop();
-            delete ani;
+            ani->deleteLater();
         }
         ani = new QVariantAnimation();
         ani->setDuration(min(300, abs(offset) * 3 / 4));
@@ -286,6 +286,7 @@ void MainWindow::setOneImage(QLabel* label, const int& id) {
         label->setStyleSheet("background-color:white; font-size:20px; color:red;");
     } else {
         label->setPixmap(img);
+        label->setStyleSheet("color:black;");
         adjustImage(label);
     }
 }
