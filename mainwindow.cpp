@@ -94,8 +94,15 @@ void MainWindow::dropEvent(QDropEvent* event) {
 
 void MainWindow::resizeEvent(QResizeEvent* event) {
     auto &h = imageHeight = this->height() - ui->statusbar->height() - (imageTop = ui->menuBar->height()), w = this->width();
+    int ih, iw;
     for (auto& img : imgs) {
-        auto ih = img->height(), iw = img->width();
+        auto p = img->pixmap();
+        if (p == nullptr) {
+            ih = iw = 1;
+        } else {
+            ih = p->height();
+            iw = p->width();
+        }
         auto ww = iw * h / ih;
         if (ww > w) {
             img->resize(w, ih * w / iw);
