@@ -38,8 +38,8 @@ public:
 
 private slots:
     void on_read_r2l_triggered(bool checked);
-
     void on_read_l2r_triggered(bool checked);
+    void on_animation_key_triggered(bool checked);
 
 private:
     Ui::MainWindow *ui;
@@ -52,6 +52,7 @@ private:
     int lastMouseX = 0;
     bool mousePressed = false;
     bool reversed = true; // true-向右滑动翻页；false-向左滑动翻页
+    bool animationKey = true; // 按方向键翻页时是否显示动画
     int imageHeight, imageTop;
     QVariantAnimation *ani = nullptr;
     void dragEnterEvent(QDragEnterEvent*);
@@ -65,6 +66,7 @@ private:
     void setOneImage(QLabel*, const int&); // 按id加载图片到指定QLabel
     void adjustImage(QLabel*); // 调整QLabel尺寸
     void arangeImage(); // 排列3个图像
-    void processKey(int); // 处理按键，单独放出来是为了给鼠标滑动提供接口
+    void shiftImage(bool); // 移动并加载新图像，true-下一张，false-上一张
+    void slideAnimation(bool); // 创建滑动动画，true-向右滚动，false-向左滚动
 };
 #endif // MAINWINDOW_H

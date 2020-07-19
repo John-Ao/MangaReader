@@ -33,6 +33,8 @@
     </property>
     <addaction name="read_r2l"/>
     <addaction name="read_l2r"/>
+    <addaction name="separator"/>
+    <addaction name="animation_key"/>
    </widget>
    <addaction name="menuOptions"/>
   </widget>
@@ -53,6 +55,17 @@
    </property>
    <property name="text">
     <string>从左向右</string>
+   </property>
+  </action>
+  <action name="animation_key">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>按键翻页动画</string>
    </property>
   </action>
  </widget>

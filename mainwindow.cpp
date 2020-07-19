@@ -107,19 +107,29 @@ void MainWindow::resizeEvent(QResizeEvent* event) {
 }
 
 void MainWindow::keyPressEvent(QKeyEvent *event) {
-    processKey(event->key());
-    arangeImage();
+    auto key = event->key();
+    bool left;
+    if ((left = key == Qt::Key_Left) || key == Qt::Key_Right) {
+        offset = 0;
+        if (ani != nullptr) {
+            ani->stop();
+            delete ani;
+            ani = nullptr;
+        }
+        if (animationKey) {
+            slideAnimation(left ^ reversed);
+        } else {
+            if (left && focusId > 0) {
+                shiftImage(false);
+            } else if (!left && focusId < files.size() - 1) {
+                shiftImage(true);
+            }
+            arangeImage();
+        }
+    }
 }
 
-void MainWindow::processKey(int key) {
-    bool next;
-    if (key == Qt::Key_Left && focusId > 0) {
-        next = false;
-    } else if (key == Qt::Key_Right && focusId < files.size() - 1) {
-        next = true;
-    } else {
-        return;
-    }
+void MainWindow::shiftImage(bool next) {
     QLabel* tmp;
     if (next ^ reversed) {
         tmp = imgs[0];
@@ -162,6 +172,11 @@ void MainWindow::mouseMoveEvent(QMouseEvent *event) {
 void MainWindow::mousePressEvent(QMouseEvent *event) {
     mousePressed = true;
     lastMouseX = event->x();
+    if (ani != nullptr) {
+        ani->stop();
+        offset = 0;
+        arangeImage();
+    }
 }
 
 void MainWindow::mouseReleaseEvent(QMouseEvent *event) {
@@ -180,14 +195,14 @@ void MainWindow::mouseReleaseEvent(QMouseEvent *event) {
         }
         offset = 0;
     }
+    slideAnimation(left);
+}
 
-    int key;
-    bool legal;
-    if (left ^ reversed) {
-        key = Qt::Key_Left;
+void MainWindow::slideAnimation(bool left) {
+    bool prev, legal;
+    if ((prev = left ^ reversed)) {
         legal = focusId > 0;
     } else {
-        key = Qt::Key_Right;
         legal = focusId < files.size() - 1;
     }
     arangeImage();
@@ -209,15 +224,16 @@ void MainWindow::mouseReleaseEvent(QMouseEvent *event) {
                 pos = Position::left;
             }
         }
+        shiftImage(!prev);
     }
-    processKey(key);
     arangeImage();
     if (offset != 0) {
         if (ani != nullptr) {
+            ani->stop();
             delete ani;
         }
         ani = new QVariantAnimation();
-        ani->setDuration(300);
+        ani->setDuration(min(300, abs(offset) * 3 / 4));
         ani->setStartValue(offset);
         ani->setEndValue(0);
         ani->setEasingCurve(QEasingCurve::InOutCubic);
@@ -304,4 +320,8 @@ void MainWindow::on_read_r2l_triggered(bool checked) {
 void MainWindow::on_read_l2r_triggered(bool checked) {
     ui->read_r2l->setChecked((reversed = !checked));
     loadImage();
+}
+
+void MainWindow::on_animation_key_triggered(bool checked) {
+    animationKey = checked;
 }
