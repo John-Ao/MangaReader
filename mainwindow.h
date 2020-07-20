@@ -18,6 +18,7 @@
 #include <QLayout>
 #include <QStyle>
 #include <QVariantAnimation>
+#include <QCollator>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {

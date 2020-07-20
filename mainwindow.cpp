@@ -75,8 +75,15 @@ void MainWindow::dropEvent(QDropEvent* event) {
             if (checkFile(i.suffix())) {
                 auto n = i.fileName();
                 files.append(n);
-                if (n == fn) {
-                    focusId = files.size() - 1;
+            }
+            QCollator co;
+            co.setNumericMode(true);
+            std::sort(files.begin(), files.end(), [&co](const QString & s1, const QString & s2) {
+                return co.compare(s1, s2) < 0;
+            });
+            for (int i = 0, j = files.size(); i < j; ++i) {
+                if (files[i] == fn) {
+                    focusId = i;
                 }
             }
         }
@@ -87,6 +94,11 @@ void MainWindow::dropEvent(QDropEvent* event) {
                 files.append(i.fileName());
             }
         }
+        QCollator co;
+        co.setNumericMode(true);
+        std::sort(files.begin(), files.end(), [&co](const QString & s1, const QString & s2) {
+            return co.compare(s1, s2) < 0;
+        });
     }
     loadImage();
     QApplication::restoreOverrideCursor();
@@ -155,6 +167,7 @@ void MainWindow::shiftImage(bool next) {
             setOneImage(tmp, focusId + 1);
             tmp->setVisible(true);
         } else {
+            tmp->clear();
             tmp->setVisible(false);
         }
     } else {
@@ -163,6 +176,7 @@ void MainWindow::shiftImage(bool next) {
             setOneImage(tmp, focusId - 1);
             tmp->setVisible(true);
         } else {
+            tmp->clear();
             tmp->setVisible(false);
         }
     }
