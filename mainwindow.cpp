@@ -65,6 +65,11 @@ void MainWindow::dropEvent(QDropEvent* event) {
     QApplication::setOverrideCursor(Qt::WaitCursor);
     QApplication::processEvents();
     auto path = QDir::cleanPath(event->mimeData()->urls().at(0).toLocalFile());
+    openPath(path);
+    QApplication::restoreOverrideCursor();
+}
+
+void MainWindow::openPath(const QString& path) {
     QFileInfo file(path);
     files.clear();
     focusId = 0;
@@ -101,7 +106,6 @@ void MainWindow::dropEvent(QDropEvent* event) {
         });
     }
     loadImage();
-    QApplication::restoreOverrideCursor();
 }
 
 void MainWindow::resizeEvent(QResizeEvent* event) {

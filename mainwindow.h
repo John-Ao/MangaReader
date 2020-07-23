@@ -36,6 +36,7 @@ class MainWindow : public QMainWindow {
 public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
+    void openPath(const QString&); // 加载路径
 
 private slots:
     void on_read_r2l_triggered(bool checked);
