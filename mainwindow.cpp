@@ -27,7 +27,7 @@ MainWindow::~MainWindow() {
 }
 
 bool checkFile(QString file) {
-    for (auto i : supportedTypes) {
+    for (auto i : QImageReader::supportedImageFormats()) {
         if (file.compare(i) == 0) {
             return true;
         }
