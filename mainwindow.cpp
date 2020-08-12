@@ -108,7 +108,7 @@ void MainWindow::openPath(const QString& path) {
     loadImage();
 }
 
-void MainWindow::resizeEvent(QResizeEvent* event) {
+void MainWindow::resizeEvent(QResizeEvent*) {
     auto &h = imageHeight = this->height() - ui->statusbar->height() - (imageTop = ui->menuBar->height()), w = this->width();
     int ih, iw;
     for (auto& img : imgs) {
