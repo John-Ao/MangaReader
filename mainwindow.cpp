@@ -298,7 +298,8 @@ void MainWindow::loadImage() {
 
 void MainWindow::setOneImage(QLabel* label, const int& id) {
     auto path = filePath + files[id];
-    auto img = QPixmap::fromImage(QImageReader(path).read());
+    auto mime = db.mimeTypeForFile(path, QMimeDatabase::MatchContent);
+    auto img = QPixmap::fromImage(QImageReader(path, mime.preferredSuffix().toUtf8()).read());
     if (img.isNull()) {
         label->setText(tr("Cannot open this file\n") + path);
         label->setStyleSheet("background-color:white; font-size:20px; color:red;");

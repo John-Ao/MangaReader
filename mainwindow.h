@@ -19,6 +19,7 @@
 #include <QStyle>
 #include <QVariantAnimation>
 #include <QCollator>
+#include <QMimeDatabase>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -55,6 +56,7 @@ private:
     bool reversed = true; // true-向右滑动翻页；false-向左滑动翻页
     bool animationKey = true; // 按方向键翻页时是否显示动画
     int imageHeight, imageTop;
+    QMimeDatabase db;
     QVariantAnimation *ani = nullptr;
     void dragEnterEvent(QDragEnterEvent*);
     void dropEvent(QDropEvent*);
