@@ -17,7 +17,11 @@
    <string>Manga Reader</string>
   </property>
   <widget class="QWidget" name="centralwidget"/>
-  <widget class="QStatusBar" name="statusbar"/>
+  <widget class="QStatusBar" name="statusBar">
+   <property name="autoFillBackground">
+    <bool>true</bool>
+   </property>
+  </widget>
   <widget class="QMenuBar" name="menuBar">
    <property name="geometry">
     <rect>
@@ -33,8 +37,10 @@
     </property>
     <addaction name="read_r2l"/>
     <addaction name="read_l2r"/>
+    <addaction name="read_slide"/>
     <addaction name="separator"/>
     <addaction name="animation_key"/>
+    <addaction name="no_gap"/>
    </widget>
    <addaction name="menuOptions"/>
   </widget>
@@ -66,6 +72,22 @@
    </property>
    <property name="text">
     <string>按键翻页动画</string>
+   </property>
+  </action>
+  <action name="read_slide">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>上下滑动</string>
+   </property>
+  </action>
+  <action name="no_gap">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>无缝模式</string>
    </property>
   </action>
  </widget>

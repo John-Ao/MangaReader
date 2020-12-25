@@ -3,27 +3,39 @@
 
 MainWindow::MainWindow(QWidget *parent): QMainWindow(parent), ui(new Ui::MainWindow) {
     ui->setupUi(this);
-    auto layout = this->layout();
-    for (auto& img : imgs) {
+    imgs[0] = newImg();
+    imgs[0]->setText("将图片或者文件夹拖入窗口以开始\n\n"
+                     "滑动、左右方向键、点击页面的左右侧均可翻页\n\n"
+                     "在[选项]中可以更改阅读方向");
+    imgs[0]->setStyleSheet("font-size:20px;");
+}
+
+MainWindow::~MainWindow() {
+    delete ui;
+}
+
+QLabel* MainWindow::newImg() {
+    QLabel*img;
+    if (imgsBank.empty()) {
         img = new QLabel();
+        auto layout = this->layout();
         img->setBackgroundRole(QPalette::Base);
         img->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
         img->setScaledContents(true);
         img->setAlignment(Qt::AlignmentFlag::AlignCenter | Qt::AlignmentFlag::AlignHCenter);
         img->setFrameShape(QFrame::Shape::Box);
         layout->addWidget(img);
+        img->stackUnder(ui->menuBar);
+        img->stackUnder(ui->statusBar);
+    } else {
+        img = imgsBank.back();
+        imgsBank.pop_back();
     }
-    imgs[1]->setText("将图片或者文件夹拖入窗口以开始\n\n"
-                     "滑动、左右方向键、点击页面的左右侧均可翻页\n\n"
-                     "在[选项]中可以更改阅读方向");
-    imgs[1]->setStyleSheet("font-size:20px;");
+    return img;
 }
 
-MainWindow::~MainWindow() {
-    delete ui;
-    for (auto& img : imgs) {
-        delete img;
-    }
+void MainWindow::deleteImg(QLabel* img) {
+    imgsBank.append(img);
 }
 
 bool checkFile(QString file) {
@@ -73,60 +85,43 @@ void MainWindow::openPath(const QString& path) {
     QFileInfo file(path);
     files.clear();
     focusId = 0;
-    if (file.isFile()) {
+    auto isFile = file.isFile();
+    if (isFile) {
         filePath = file.path() + "/";
-        auto fn = file.fileName();
-        for (auto i : file.dir().entryInfoList()) {
-            if (checkFile(i.suffix())) {
-                auto n = i.fileName();
-                files.append(n);
-            }
-            QCollator co;
-            co.setNumericMode(true);
-            std::sort(files.begin(), files.end(), [&co](const QString & s1, const QString & s2) {
-                return co.compare(s1, s2) < 0;
-            });
-            for (int i = 0, j = files.size(); i < j; ++i) {
-                if (files[i] == fn) {
-                    focusId = i;
-                }
-            }
-        }
-    } else if (file.isDir()) {
+    } else {
         filePath = path + "/";
-        for (auto i : QDir(path).entryInfoList()) {
-            if (checkFile(i.suffix())) {
-                files.append(i.fileName());
+    }
+    for (auto i : QDir(filePath).entryInfoList()) {
+        if (checkFile(i.suffix())) {
+            files.append(i.fileName());
+        }
+    }
+    QCollator co;
+    co.setNumericMode(true);
+    std::sort(files.begin(), files.end(), [&co](const QString & s1, const QString & s2) {
+        return co.compare(s1, s2) < 0;
+    });
+    if (isFile) {
+        auto fn = file.fileName();
+        for (int i = 0, j = files.size(); i < j; ++i) {
+            if (files[i] == fn) {
+                focusId = i;
+                break;
             }
         }
-        QCollator co;
-        co.setNumericMode(true);
-        std::sort(files.begin(), files.end(), [&co](const QString & s1, const QString & s2) {
-            return co.compare(s1, s2) < 0;
-        });
     }
     loadImage();
+    arrangeImage();
 }
 
 void MainWindow::resizeEvent(QResizeEvent*) {
-    auto &h = imageHeight = this->height() - ui->statusbar->height() - (imageTop = ui->menuBar->height()), w = this->width();
-    int ih, iw;
-    for (auto& img : imgs) {
-        auto p = img->pixmap();
-        if (p == nullptr) {
-            ih = iw = 1;
-        } else {
-            ih = p->height();
-            iw = p->width();
-        }
-        auto ww = iw * h / ih;
-        if (ww > w) {
-            img->resize(w, ih * w / iw);
-        } else {
-            img->resize(ww, h);
-        }
+    imageHeight = this->height() - ui->statusBar->height() - 3 - (imageTop = ui->menuBar->height());
+    auto w = this->width();
+    if (sliding && imageWidth != 0) {
+        imageSlide = imageSlide * w / imageWidth;
     }
-    arangeImage();
+    imageWidth = w;
+    arrangeImage();
 }
 
 void MainWindow::keyPressEvent(QKeyEvent *event) {
@@ -139,119 +134,147 @@ void MainWindow::keyPressEvent(QKeyEvent *event) {
             ani->deleteLater();
             ani = nullptr;
         }
-        if (animationKey) {
-            slideAnimation(left ^ reversed);
+        if (animationKey && !sliding) {
+            shiftImage(left ^ reversed);
+            slideAnimation();
         } else {
-            if (left && focusId > 0) {
-                shiftImage(false);
-            } else if (!left && focusId < files.size() - 1) {
-                shiftImage(true);
-            }
-            arangeImage();
+            shiftImage(left);
+            offset = 0;
+            arrangeImage();
         }
     }
 }
 
-void MainWindow::shiftImage(bool next) {
-    QLabel* tmp;
-    if (next ^ reversed) {
-        tmp = imgs[0];
-        imgs[0] = imgs[1];
-        imgs[1] = imgs[2];
-        imgs[2] = tmp;
-    } else {
-        tmp = imgs[2];
-        imgs[2] = imgs[1];
-        imgs[1] = imgs[0];
-        imgs[0] = tmp;
-    }
-    if (next) {
-        ++focusId;
-        if (focusId < files.size() - 1) {
-            setOneImage(tmp, focusId + 1);
-            tmp->setVisible(true);
-        } else {
-            tmp->clear();
-            tmp->setVisible(false);
+void MainWindow::shiftImage(bool left) {
+    if (left) {
+        auto id = focusId + (!sliding && reversed ? 1 : -1);
+        if (id >= 0 && id < files.size()) {
+            focusId = id;
+            imgs.offset -= 1;
+            auto img = imgs.get(0);
+            if (img == nullptr) {
+                img = imgs[0] = newImg();
+                setOneImage(img, id);
+            }
+            if (sliding) {
+                auto tmp = (imgs[0]->height() + imgs[1]->height()) / 2 + gap;
+                offset -= tmp;
+                lastMouseY += tmp;
+            } else {
+                auto tmp = (imgs[0]->width() + imgs[1]->width()) / 2 + gap;
+                offset -= tmp;
+                lastMouseX += tmp;
+            }
         }
     } else {
-        --focusId;
-        if (focusId > 0) {
-            setOneImage(tmp, focusId - 1);
-            tmp->setVisible(true);
-        } else {
-            tmp->clear();
-            tmp->setVisible(false);
+        auto id = focusId + (!sliding && reversed ? -1 : 1);
+        if (id >= 0 && id < files.size()) {
+            focusId = id;
+            imgs.offset += 1;
+            auto img = imgs.get(0);
+            if (img == nullptr) {
+                img = imgs[0] = newImg();
+                setOneImage(img, id);
+            }
+            if (sliding) {
+                auto tmp = (imgs[0]->height() + imgs[-1]->height()) / 2 + gap;
+                offset += tmp;
+                lastMouseY -= tmp;
+            } else {
+                auto tmp = (imgs[0]->width() + imgs[-1]->width()) / 2 + gap;
+                offset += tmp;
+                lastMouseX -= tmp;
+            }
         }
     }
-    ui->statusbar->showMessage(QString("%1    %2/%3").arg(files[focusId]).arg(focusId + 1).arg(files.size()));
+    if (0 <= focusId && focusId < files.size()) {
+        ui->statusBar->showMessage(QString("%1    %2/%3").arg(files[focusId]).arg(focusId + 1).arg(files.size()));
+    }
 }
 
 void MainWindow::mouseMoveEvent(QMouseEvent *event) {
     if (mousePressed) {
-        offset = event->x() - lastMouseX;
-        arangeImage();
+        if (sliding) {
+            offset = event->y() - lastMouseY;
+            if (imageSlide + offset > imageHeight / 2) {
+                shiftImage(true);
+            } else if (imageSlide + offset + imgs[0]->height() < imageHeight / 2) {
+                shiftImage(false);
+            }
+        } else {
+            offset = event->x() - lastMouseX;
+            if (offset > imgs[0]->width() / 2) {
+                shiftImage(true);
+            } else if (offset < -imgs[0]->width() / 2) {
+                shiftImage(false);
+            }
+        }
+        if (abs(offset) > 5) { // 防抖
+            arrangeImage();
+        }
     }
 }
 
 void MainWindow::mousePressEvent(QMouseEvent *event) {
     mousePressed = true;
     lastMouseX = event->x();
+    lastMouseY = event->y();
     if (ani != nullptr) {
         ani->stop();
+        ani->deleteLater();
+        ani = nullptr;
         offset = 0;
-        arangeImage();
+        arrangeImage();
     }
 }
 
 void MainWindow::mouseReleaseEvent(QMouseEvent *event) {
     mousePressed = false;
-    bool left;
-    if (abs(offset) > 30) {
-        left = offset > 0;
-    } else {
-        auto w = this->width(), x = event->x();
-        if (x < w / 3) {
-            left = false;
-        } else if (x > 2 * w / 3) {
-            left = true;
+    if (sliding) {
+        int tmp;
+        if ((focusId == 0 || files.empty()) && (tmp = imageSlide + offset + imgs[0]->height() - imageHeight) > 0 && imageSlide + offset > 0) {
+            offset = tmp;
+            imageSlide = imageHeight - imgs[0]->height();
+            if (imageSlide < 0) {
+                offset += imageSlide;
+                imageSlide = 0;
+            }
+            slideAnimation();
+        } else if ((focusId == files.size() - 1 || files.empty()) && (tmp = imageSlide + offset) < 0 && imageSlide + offset + imgs[0]->height() < imageHeight) {
+            offset = tmp;
+            imageSlide = 0;
+            if ((tmp = imgs[0]->height() - imageHeight) > 0) {
+                imageSlide = -tmp;
+                offset += tmp;
+            }
+            slideAnimation();
         } else {
-            return;
+            imageSlide += offset;
+            offset = 0;
         }
-        offset = 0;
+    } else {
+        if (abs(offset) > 30) {
+            slideAnimation();
+        } else {
+            auto w = this->width(), x = event->x();
+            if (x < w / 3) {
+                shiftImage(false);
+            } else if (x > 2 * w / 3) {
+                shiftImage(true);
+            } else {
+                return;
+            }
+            if (!animationKey) {
+                offset = 0;
+                arrangeImage();
+            } else {
+                slideAnimation();
+            }
+        }
     }
-    slideAnimation(left);
 }
 
-void MainWindow::slideAnimation(bool left) {
-    bool prev, legal;
-    if ((prev = left ^ reversed)) {
-        legal = focusId > 0;
-    } else {
-        legal = focusId < files.size() - 1;
-    }
-    arangeImage();
-    if (legal) {
-        if (left) {
-            offset -= (imgs[1]->width() + imgs[0]->width()) / 2 + gap;
-            auto p = imgs[2]->pixmap();
-            if (p != nullptr) {
-                imgs[3]->setPixmap(*p);
-                adjustImage(imgs[3]);
-                pos = Position::right;
-            }
-        } else {
-            offset += (imgs[1]->width() + imgs[2]->width()) / 2 + gap;
-            auto p = imgs[0]->pixmap();
-            if (p != nullptr) {
-                imgs[3]->setPixmap(*p);
-                adjustImage(imgs[3]);
-                pos = Position::left;
-            }
-        }
-        shiftImage(!prev);
-    }
-    arangeImage();
+void MainWindow::slideAnimation() {
     if (offset != 0) {
         if (ani != nullptr) {
             ani->stop();
@@ -264,43 +287,39 @@ void MainWindow::slideAnimation(bool left) {
         ani->setEasingCurve(QEasingCurve::InOutCubic);
         connect(ani, &QVariantAnimation::valueChanged, [this](const QVariant & value) {
             offset = value.toInt();
-            arangeImage();
+            arrangeImage();
             QApplication::processEvents();
         });
-        connect(ani, &QVariantAnimation::finished, [this]() {
-            this->pos = none;
-            arangeImage();
-        });
+//        connect(ani, &QVariantAnimation::finished, [this]() {
+//            this->pos = none;
+//            arrangeImage();
+//        });
         ani->start();
     }
 }
 
 void MainWindow::loadImage() {
-    if (focusId < 0) {
+    if (focusId < 0 || focusId >= files.size()) {
         return;
     }
-    for (int i = 0, t; i < 3; ++i) {
-        if (reversed) {
-            t = focusId + 1 - i;
-        } else {
-            t = focusId - 1 + i;
-        }
+    for (auto key : imgs.map.keys()) {
+        auto t = key + imgs.offset;
+        t = focusId + (!sliding && reversed ? -t : t);
         if (t >= 0 && t < files.size()) {
-            setOneImage(imgs[i], t);
-            imgs[i]->setVisible(true);
-        } else {
-            imgs[i]->setVisible(false);
+            setOneImage(imgs[key], t);
         }
+        arrangeImage();
+        ui->statusBar->showMessage(QString("%1    %2/%3").arg(files[focusId]).arg(focusId + 1).arg(files.size()));
     }
-    arangeImage();
-    ui->statusbar->showMessage(QString("%1    %2/%3").arg(files[focusId]).arg(focusId + 1).arg(files.size()));
 }
 
-void MainWindow::setOneImage(QLabel* label, const int& id) {
+void MainWindow::setOneImage(QLabel * label, const int& id) {
     auto path = filePath + files[id];
     auto mime = db.mimeTypeForFile(path, QMimeDatabase::MatchContent);
     auto img = QPixmap::fromImage(QImageReader(path, mime.preferredSuffix().toUtf8()).read());
     if (img.isNull()) {
+        auto m = min(imageWidth, imageHeight);
+        label->resize(m, m);
         label->setText(tr("Cannot open this file\n") + path);
         label->setStyleSheet("background-color:white; font-size:20px; color:red;");
     } else {
@@ -310,45 +329,162 @@ void MainWindow::setOneImage(QLabel* label, const int& id) {
     }
 }
 
-void MainWindow::adjustImage(QLabel *label) {
-    auto &h = imageHeight, w = this->width();
+void MainWindow::adjustImage(QLabel * label) {
+    auto &h = imageHeight, &w = imageWidth;
     auto img = label->pixmap();
     auto ih = img->height(), iw = img->width();
-    auto ww = iw * h / ih;
-    if (ww > w) {
+    if (sliding) {
         label->resize(w, ih * w / iw);
     } else {
-        label->resize(ww, h);
+        auto ww = iw * h / ih;
+        if (ww > w) {
+            label->resize(w, ih * w / iw);
+        } else {
+            label->resize(ww, h);
+        }
     }
 }
 
-void MainWindow::arangeImage() {
-    auto &h = imageHeight, w = this->width();
-    auto left = (w - imgs[1]->width()) / 2 + offset;
-    imgs[1]->move(left, imageTop + (h - imgs[1]->height()) / 2);
-    imgs[0]->move(left - imgs[0]->width() - gap, imageTop + (h - imgs[0]->height()) / 2);
-    imgs[2]->move(left + imgs[1]->width() + gap, imageTop + (h - imgs[2]->height()) / 2);
-    if (pos == Position::left) {
-        imgs[3]->move(left - imgs[0]->width() - gap * 2 - imgs[3]->width(), imageTop + (h - imgs[3]->height()) / 2);
-        imgs[3]->setVisible(true);
-    } else if (pos == Position::right) {
-        imgs[3]->move(left + imgs[1]->width() + gap * 2 + imgs[2]->width(), imageTop + (h - imgs[3]->height()) / 2);
-        imgs[3]->setVisible(true);
+void MainWindow::arrangeImage() {
+    auto &h = imageHeight, &w = imageWidth;
+    bool prevDone = false, nextDone = false;
+    int prevPos, nextPos, prefetch = prefetchNumber;
+    auto img = imgs[0];
+    if (files.empty()) {
+        img->resize(w, h);
     } else {
-        imgs[3]->setVisible(false);
+        adjustImage(img);
+    }
+    if (sliding) {
+        prevPos = imageTop + imageSlide + offset;
+        img->move(0, prevPos);
+        nextPos = prevPos + img->height() + gap;
+        prevPos -= gap;
+    } else {
+        prevPos = (w - img->width()) / 2 + offset;
+        img->move(prevPos, imageTop + (h - img->height()) / 2);
+        nextPos = prevPos + img->width() + gap;
+        prevPos -= gap;
+    }
+    img->setVisible(true);
+    for (int i = 2, j; !(prevDone && nextDone); ++i) {
+        j = i % 2 ? -i / 2 : i / 2; // 1,-1,2,-2,...
+        img = imgs.get(j);
+        if (j < 0) {
+            if (prevDone) {
+                continue;
+            } else if (((sliding && prevPos < imageTop) || (!sliding && prevPos < 0)) && --prefetch < 0) {
+                if (img != nullptr) {
+                    img->setVisible(false);
+                    imgs.remove(j);
+                    deleteImg(img);
+                }
+                prevDone = true;
+                continue;
+            }
+        } else {
+            if (nextDone) {
+                continue;
+            } else if (((sliding && nextPos > imageTop + h) || (!sliding && nextPos > imageWidth)) && --prefetch < 0) {
+                if (img != nullptr) {
+                    img->setVisible(false);
+                    imgs.remove(j);
+                    deleteImg(img);
+                }
+                nextDone = true;
+                continue;
+            }
+        }
+        auto id = focusId + (!sliding && reversed ? -j : j);
+        if (id >= 0 && id < files.size()) {
+            if (img == nullptr) {
+                img = imgs[j] = newImg();
+            }
+            setOneImage(img, id);
+            img->setVisible(true);
+        } else {
+            if (j < 0) {
+                prevDone = true;
+            } else {
+                nextDone = true;
+            }
+            continue;
+        }
+        if (sliding) {
+            if (j < 0) {
+                prevPos -= img->height();
+                img->move(0, prevPos);
+                prevPos -= gap;
+            } else {
+                img->move(0, nextPos);
+                nextPos += img->height() + gap;
+            }
+        } else {
+            if (j < 0) {
+                prevPos -= img->width();
+                img->move(prevPos, imageTop + (h - img->height()) / 2);
+                prevPos -= gap;
+            } else {
+                img->move(nextPos, imageTop + (h - img->height()) / 2);
+                nextPos += img->width() + gap;
+            }
+        }
     }
 }
 
-void MainWindow::on_read_r2l_triggered(bool checked) {
-    ui->read_l2r->setChecked(!(reversed = checked));
+void MainWindow::on_read_r2l_triggered(bool) {
+    ui->read_r2l->setChecked(true);
+    ui->read_l2r->setChecked(false);
+    ui->read_slide->setChecked(false);
+    ui->animation_key->setEnabled(true);
+    reversed = true;
+    if (sliding) {
+        sliding = false;
+        resizeEvent(nullptr);
+    }
     loadImage();
 }
 
-void MainWindow::on_read_l2r_triggered(bool checked) {
-    ui->read_r2l->setChecked((reversed = !checked));
+void MainWindow::on_read_l2r_triggered(bool) {
+    ui->read_r2l->setChecked(false);
+    ui->read_l2r->setChecked(true);
+    ui->read_slide->setChecked(false);
+    ui->animation_key->setEnabled(true);
+    reversed = false;
+    if (sliding) {
+        sliding = false;
+        resizeEvent(nullptr);
+    }
     loadImage();
 }
 
 void MainWindow::on_animation_key_triggered(bool checked) {
     animationKey = checked;
+}
+
+void MainWindow::on_read_slide_triggered() {
+    ui->read_r2l->setChecked(false);
+    ui->read_l2r->setChecked(false);
+    ui->read_slide->setChecked(true);
+    ui->animation_key->setEnabled(false);
+    if (!sliding) {
+        sliding = true;
+        resizeEvent(nullptr);
+    }
+    loadImage();
+}
+
+void MainWindow::on_no_gap_triggered(bool checked) {
+    if (checked) {
+        gap = 0;
+        for (auto img : imgs.map.values()) {
+            img->setFrameStyle(QFrame::NoFrame);
+        }
+    } else {
+        gap = 5;
+        for (auto img : imgs.map.values()) {
+            img->setFrameStyle(QFrame::Panel);
+        }
+    }
+    arrangeImage();
 }
