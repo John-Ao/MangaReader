@@ -76,8 +76,11 @@ private:
     QString filePath;
     QList<QString> files;
     int gap = 5; // 图像间间距
+    bool noGap = false; // 是否有间距
     ImgMap imgs; // 用于显示图片的容器
     QList<QLabel*> imgsBank; // 备用库
+    QLabel* panel; // 遮罩
+    QWidget* imgContainer;
     enum Position {none, left, right} pos = none; // 填补位置
     int focusId = 0; // 当前阅读页
     int offset = 0; // 滑动位移

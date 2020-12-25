@@ -3,6 +3,14 @@
 
 MainWindow::MainWindow(QWidget *parent): QMainWindow(parent), ui(new Ui::MainWindow) {
     ui->setupUi(this);
+    setMinimumSize(450, 250);
+    panel = new QLabel();
+    auto layout = this->layout();
+    panel->setAttribute(Qt::WA_TranslucentBackground);
+    layout->addWidget(panel);
+    imgContainer = new QWidget();
+    layout->addWidget(imgContainer);
+    imgContainer->stackUnder(panel);
     imgs[0] = newImg();
     imgs[0]->setText("将图片或者文件夹拖入窗口以开始\n\n"
                      "滑动、左右方向键、点击页面的左右侧均可翻页\n\n"
@@ -18,19 +26,17 @@ QLabel* MainWindow::newImg() {
     QLabel*img;
     if (imgsBank.empty()) {
         img = new QLabel();
-        auto layout = this->layout();
         img->setBackgroundRole(QPalette::Base);
         img->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
         img->setScaledContents(true);
         img->setAlignment(Qt::AlignmentFlag::AlignCenter | Qt::AlignmentFlag::AlignHCenter);
         img->setFrameShape(QFrame::Shape::Box);
-        layout->addWidget(img);
-        img->stackUnder(ui->menuBar);
-        img->stackUnder(ui->statusBar);
+        img->setParent(imgContainer);
     } else {
         img = imgsBank.back();
         imgsBank.pop_back();
     }
+    img->setFrameStyle(noGap ? QFrame::NoFrame : QFrame::Panel);
     return img;
 }
 
@@ -115,12 +121,24 @@ void MainWindow::openPath(const QString& path) {
 }
 
 void MainWindow::resizeEvent(QResizeEvent*) {
-    imageHeight = this->height() - ui->statusBar->height() - 3 - (imageTop = ui->menuBar->height());
+    auto h = imageHeight = this->height() - ui->statusBar->height() - 3 - (imageTop = ui->menuBar->height());
     auto w = this->width();
     if (sliding && imageWidth != 0) {
         imageSlide = imageSlide * w / imageWidth;
     }
     imageWidth = w;
+    if (files.empty()) {
+        imgs[0]->resize(w, h);
+    } else {
+        for (auto img : imgs.map.values()) {
+            img->setVisible(false);
+            adjustImage(img);
+        }
+    }
+    panel->resize(w, h);
+    panel->move(0, imageTop);
+    imgContainer->resize(w, h);
+    imgContainer->move(0, imageTop);
     arrangeImage();
 }
 
@@ -157,7 +175,7 @@ void MainWindow::shiftImage(bool left) {
                 setOneImage(img, id);
             }
             if (sliding) {
-                auto tmp = (imgs[0]->height() + imgs[1]->height()) / 2 + gap;
+                auto tmp = imgs[0]->height() + gap;
                 offset -= tmp;
                 lastMouseY += tmp;
             } else {
@@ -177,7 +195,7 @@ void MainWindow::shiftImage(bool left) {
                 setOneImage(img, id);
             }
             if (sliding) {
-                auto tmp = (imgs[0]->height() + imgs[-1]->height()) / 2 + gap;
+                auto tmp = imgs[-1]->height() + gap;
                 offset += tmp;
                 lastMouseY -= tmp;
             } else {
@@ -196,22 +214,20 @@ void MainWindow::mouseMoveEvent(QMouseEvent *event) {
     if (mousePressed) {
         if (sliding) {
             offset = event->y() - lastMouseY;
-            if (imageSlide + offset > imageHeight / 2) {
+            if (imageSlide + offset > imageHeight / 2 + 20) {
                 shiftImage(true);
-            } else if (imageSlide + offset + imgs[0]->height() < imageHeight / 2) {
+            } else if (imageSlide + offset + imgs[0]->height() < imageHeight / 2 - 20) {
                 shiftImage(false);
             }
         } else {
             offset = event->x() - lastMouseX;
-            if (offset > imgs[0]->width() / 2) {
+            if (offset > imgs[0]->width() / 2 + 20) {
                 shiftImage(true);
-            } else if (offset < -imgs[0]->width() / 2) {
+            } else if (offset < -imgs[0]->width() / 2 - 20) {
                 shiftImage(false);
             }
         }
-        if (abs(offset) > 5) { // 防抖
-            arrangeImage();
-        }
+        arrangeImage();
     }
 }
 
@@ -303,13 +319,11 @@ void MainWindow::loadImage() {
         return;
     }
     for (auto key : imgs.map.keys()) {
-        auto t = key + imgs.offset;
+        auto t = key - imgs.offset;
         t = focusId + (!sliding && reversed ? -t : t);
         if (t >= 0 && t < files.size()) {
-            setOneImage(imgs[key], t);
+            setOneImage(imgs.map[key], t);
         }
-        arrangeImage();
-        ui->statusBar->showMessage(QString("%1    %2/%3").arg(files[focusId]).arg(focusId + 1).arg(files.size()));
     }
 }
 
@@ -349,20 +363,19 @@ void MainWindow::arrangeImage() {
     auto &h = imageHeight, &w = imageWidth;
     bool prevDone = false, nextDone = false;
     int prevPos, nextPos, prefetch = prefetchNumber;
-    auto img = imgs[0];
-    if (files.empty()) {
-        img->resize(w, h);
-    } else {
-        adjustImage(img);
+
+    for (auto img : imgs.map.values()) {
+        img->setVisible(false);
     }
+    auto img = imgs[0];
     if (sliding) {
-        prevPos = imageTop + imageSlide + offset;
+        prevPos = imageSlide + offset;
         img->move(0, prevPos);
         nextPos = prevPos + img->height() + gap;
         prevPos -= gap;
     } else {
         prevPos = (w - img->width()) / 2 + offset;
-        img->move(prevPos, imageTop + (h - img->height()) / 2);
+        img->move(prevPos, (h - img->height()) / 2);
         nextPos = prevPos + img->width() + gap;
         prevPos -= gap;
     }
@@ -373,7 +386,7 @@ void MainWindow::arrangeImage() {
         if (j < 0) {
             if (prevDone) {
                 continue;
-            } else if (((sliding && prevPos < imageTop) || (!sliding && prevPos < 0)) && --prefetch < 0) {
+            } else if (((sliding && prevPos < 0) || (!sliding && prevPos < 0)) && --prefetch < 0) {
                 if (img != nullptr) {
                     img->setVisible(false);
                     imgs.remove(j);
@@ -385,7 +398,7 @@ void MainWindow::arrangeImage() {
         } else {
             if (nextDone) {
                 continue;
-            } else if (((sliding && nextPos > imageTop + h) || (!sliding && nextPos > imageWidth)) && --prefetch < 0) {
+            } else if (((sliding && nextPos > h) || (!sliding && nextPos > imageWidth)) && --prefetch < 0) {
                 if (img != nullptr) {
                     img->setVisible(false);
                     imgs.remove(j);
@@ -399,8 +412,8 @@ void MainWindow::arrangeImage() {
         if (id >= 0 && id < files.size()) {
             if (img == nullptr) {
                 img = imgs[j] = newImg();
+                setOneImage(img, id);
             }
-            setOneImage(img, id);
             img->setVisible(true);
         } else {
             if (j < 0) {
@@ -422,14 +435,17 @@ void MainWindow::arrangeImage() {
         } else {
             if (j < 0) {
                 prevPos -= img->width();
-                img->move(prevPos, imageTop + (h - img->height()) / 2);
+                img->move(prevPos, (h - img->height()) / 2);
                 prevPos -= gap;
             } else {
-                img->move(nextPos, imageTop + (h - img->height()) / 2);
+                img->move(nextPos, (h - img->height()) / 2);
                 nextPos += img->width() + gap;
             }
         }
     }
+    panel->raise();
+    ui->menuBar->raise();
+    ui->statusBar->raise();
 }
 
 void MainWindow::on_read_r2l_triggered(bool) {
@@ -441,8 +457,10 @@ void MainWindow::on_read_r2l_triggered(bool) {
     if (sliding) {
         sliding = false;
         resizeEvent(nullptr);
+    } else {
+        loadImage();
+        arrangeImage();
     }
-    loadImage();
 }
 
 void MainWindow::on_read_l2r_triggered(bool) {
@@ -454,8 +472,10 @@ void MainWindow::on_read_l2r_triggered(bool) {
     if (sliding) {
         sliding = false;
         resizeEvent(nullptr);
+    } else {
+        loadImage();
+        arrangeImage();
     }
-    loadImage();
 }
 
 void MainWindow::on_animation_key_triggered(bool checked) {
@@ -471,11 +491,10 @@ void MainWindow::on_read_slide_triggered() {
         sliding = true;
         resizeEvent(nullptr);
     }
-    loadImage();
 }
 
 void MainWindow::on_no_gap_triggered(bool checked) {
-    if (checked) {
+    if ((noGap = checked)) {
         gap = 0;
         for (auto img : imgs.map.values()) {
             img->setFrameStyle(QFrame::NoFrame);
