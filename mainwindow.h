@@ -71,6 +71,8 @@ private slots:
     void on_read_slide_triggered();
     void on_no_gap_triggered(bool checked);
 
+    void on_copy_image_triggered();
+
 private:
     Ui::MainWindow *ui;
     QString filePath;
@@ -115,5 +117,6 @@ private:
     void slideAnimation(); // 创建滑动动画，将offset归零
     void slideUp(); // 处理上下滑动
     void slideEnd(bool noOffset = false); // 结束上下滑动
+    void copyFocusedImage(); // 复制当前图像到剪切板
 };
 #endif // MAINWINDOW_H

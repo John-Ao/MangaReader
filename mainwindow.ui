@@ -41,6 +41,8 @@
     <addaction name="separator"/>
     <addaction name="animation_key"/>
     <addaction name="no_gap"/>
+    <addaction name="separator"/>
+    <addaction name="copy_image"/>
    </widget>
    <addaction name="menuOptions"/>
   </widget>
@@ -88,6 +90,14 @@
    </property>
    <property name="text">
     <string>无缝模式</string>
+   </property>
+  </action>
+  <action name="copy_image">
+   <property name="text">
+    <string>复制图片</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+C</string>
    </property>
   </action>
  </widget>

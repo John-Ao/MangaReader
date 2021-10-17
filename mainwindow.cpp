@@ -1,5 +1,7 @@
 ﻿#include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include <QClipboard>
+#include <QUrl>
 
 template <typename T>
 class asKeyRange {
@@ -169,11 +171,10 @@ void MainWindow::keyPressEvent(QKeyEvent *event) {
             ani->deleteLater();
             ani = nullptr;
         }
+        shiftImage(left ^ reversed);
         if (animationKey && !sliding) {
-            shiftImage(left ^ reversed);
             slideAnimation();
         } else {
-            shiftImage(left);
             offset = 0;
             arrangeImage();
         }
@@ -296,9 +297,9 @@ void MainWindow::mouseReleaseEvent(QMouseEvent *event) {
         } else if (abs(x - lastMouseX) + abs(y - lastMouseY) < 30) {
             int w = this->width();
             if (x < w / 3) {
-                shiftImage(false);
+                shiftImage(!reversed);
             } else if (x > 2 * w / 3) {
-                shiftImage(true);
+                shiftImage(reversed);
             }
         }
         if (!animationKey) {
@@ -403,6 +404,15 @@ void MainWindow::setOneImage(QLabel * label, const int& id) {
         label->setPixmap(img);
         label->setStyleSheet("color:black;");
         adjustImage(label);
+    }
+}
+
+void MainWindow::copyFocusedImage() {
+    if (0 <= focusId && focusId < files.size()) {
+        QMimeData* mimeData = new QMimeData();
+        QClipboard *clipboard = QGuiApplication::clipboard();
+        mimeData->setUrls({QUrl::fromLocalFile(filePath + files[focusId])});
+        clipboard->setMimeData(mimeData);
     }
 }
 
@@ -585,3 +595,8 @@ void MainWindow::on_no_gap_triggered(bool checked) {
     }
     arrangeImage();
 }
+
+void MainWindow::on_copy_image_triggered() {
+    copyFocusedImage();
+}
+
